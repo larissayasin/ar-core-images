@@ -1,10 +1,10 @@
 {
   materials: [
     {
-      name: 'Convertible_mat1',
+      name: 'Boombox_mat',
       parameters: [
         {
-          baseColor: 'Convertible_BaseColor',
+          baseColor: 'Boombox_BaseColor',
         },
         {
           baseColorTint: [
@@ -34,16 +34,16 @@
       'Orientation',
     ],
     collision: {},
-    file: 'sampledata/models/Convertible.obj',
-    name: 'Convertible',
+    file: 'sampledata/models/Boombox/Boombox.obj',
+    name: 'Boombox',
     recenter: 'root',
     scale: 0.1,
   },
   samplers: [
     {
-      file: 'sampledata/models/Convertible_BaseColor.png',
-      name: 'Convertible_BaseColor',
-      pipeline_name: 'Convertible_BaseColor.png',
+      file: 'sampledata/models/Boombox/Boombox_BaseColor.png',
+      name: 'Boombox_BaseColor',
+      pipeline_name: 'Boombox_BaseColor.png',
     },
   ],
   version: '0.52:1',

@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import android.widget.TextView
 import android.widget.Toast
 import com.google.ar.core.*
 import com.google.ar.core.exceptions.UnavailableApkTooOldException
@@ -15,8 +16,11 @@ import com.google.ar.core.exceptions.UnavailableSdkTooOldException
 import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.ArSceneView
 import com.google.ar.sceneform.FrameTime
+import com.google.ar.sceneform.Node
+import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.rendering.Renderable
+import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import kotlinx.android.synthetic.main.activity_main.*
@@ -27,7 +31,8 @@ class MainActivity : AppCompatActivity() {
     private var mSession: Session? = null
     private var arFragment: ArFragment? = null
     private var arSceneView: ArSceneView? = null
-    private var modelAdded = false // add model once
+    private var modelCarAdded = false // add model once
+    private var modelDaftAdded = false // add model once
 
     private var sessionConfigured = false
 
@@ -48,18 +53,17 @@ class MainActivity : AppCompatActivity() {
     private fun setupAugmentedImageDb(config: Config): Boolean {
         val augmentedImageDatabase = AugmentedImageDatabase(mSession!!)
 
-        val augmentedImageBitmap = loadAugmentedImage() ?: return false
-
-        augmentedImageDatabase.addImage("car", augmentedImageBitmap)
+        augmentedImageDatabase.addImage("car", loadAugmentedImage("car.jpg") ?: return false)
+        augmentedImageDatabase.addImage("daft", loadAugmentedImage("daft.jpg") ?: return false)
 
         config.augmentedImageDatabase = augmentedImageDatabase
         return true
     }
 
 
-    private fun loadAugmentedImage(): Bitmap? {
+    private fun loadAugmentedImage(file : String): Bitmap? {
         try {
-            assets.open("car.jpg").use { `is` -> return BitmapFactory.decodeStream(`is`) }
+            assets.open(file).use { `is` -> return BitmapFactory.decodeStream(`is`) }
         } catch (e: IOException) {
             Log.e("ImageLoad", "IO Exception while loading", e)
         }
@@ -75,11 +79,16 @@ class MainActivity : AppCompatActivity() {
         for (augmentedImage in augmentedImages) {
             if (augmentedImage.trackingState == TrackingState.TRACKING) {
 
-                if (augmentedImage.name.contains("car") && !modelAdded) {
+                if (augmentedImage.name.contains("car") && !modelCarAdded) {
                     renderObject(arFragment!!,
                             augmentedImage.createAnchor(augmentedImage.centerPose),
-                            Uri.parse("model.sfb"))
-                    modelAdded = true
+                            Uri.parse("Convertible.sfb"))
+                    modelCarAdded = true
+                }
+                if (augmentedImage.name.contains("daft") && !modelDaftAdded) {
+                    renderView(arFragment!!,
+                            augmentedImage.createAnchor(augmentedImage.centerPose))
+                    modelDaftAdded = true
                 }
             }
         }
@@ -102,13 +111,33 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun addNodeToScene(fragment: ArFragment, anchor: Anchor, renderable: Renderable) {
+    private fun renderView(fragment: ArFragment, anchor: Anchor){
+        ViewRenderable.builder()
+                .setView(this, R.layout.text_info)
+                .build()
+                .thenAccept { renderable ->
+                    (renderable.view as TextView).text = "Example"
+                    addNodeToScene(fragment, anchor, renderable)
+
+                }
+                .exceptionally { throwable -> val builder = AlertDialog.Builder(this)
+                    builder.setMessage(throwable.message)
+                            .setTitle("Error!")
+                    val dialog = builder.create()
+                    dialog.show()
+                    null }
+    }
+
+    private fun addNodeToScene(fragment: ArFragment, anchor: Anchor, renderable: Renderable) : Node {
         val anchorNode = AnchorNode(anchor)
-        val node = TransformableNode(fragment.transformationSystem)
+        val node = Node()
         node.renderable = renderable
         node.setParent(anchorNode)
+        node.localPosition = Vector3(0f, 0.2f, 0f)
         fragment.arSceneView.scene.addChild(anchorNode)
-        node.select()
+       // node.select()
+
+        return node
     }
 
     public override fun onPause() {
