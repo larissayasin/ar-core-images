@@ -2,8 +2,8 @@
 
 App recognizes a car image and shows a model above
 
-*Kotlin
-*ARCore
-*Sceneform
+* Kotlin
+* ARCore
+* Sceneform
 
 Car models from Poly
