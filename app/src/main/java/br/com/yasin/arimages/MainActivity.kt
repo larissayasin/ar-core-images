@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         ModelRenderable.builder()
                 .setSource(this, model)
                 .build()
-                .thenAccept { renderable -> addNodeToScene(fragment, anchor, renderable) }
+                .thenAccept { renderable -> addNodeToScene(fragment, anchor, renderable, Vector3(0f, 0f, 0f)) }
                 .exceptionally { throwable ->
                     val builder = AlertDialog.Builder(this)
                     builder.setMessage(throwable.message)
@@ -117,7 +117,22 @@ class MainActivity : AppCompatActivity() {
                 .build()
                 .thenAccept { renderable ->
                     (renderable.view as TextView).text = "Example"
-                    addNodeToScene(fragment, anchor, renderable)
+                    addNodeToScene(fragment, anchor, renderable, Vector3(0f, 0.2f, 0f))
+
+                }
+                .exceptionally { throwable -> val builder = AlertDialog.Builder(this)
+                    builder.setMessage(throwable.message)
+                            .setTitle("Error!")
+                    val dialog = builder.create()
+                    dialog.show()
+                    null }
+
+        ViewRenderable.builder()
+                .setView(this, R.layout.text_info2)
+                .build()
+                .thenAccept { renderable ->
+                    (renderable.view as TextView).text = "Texto - 123"
+                    addNodeToScene(fragment, anchor, renderable, Vector3(0.8f, 0f, 0f))
 
                 }
                 .exceptionally { throwable -> val builder = AlertDialog.Builder(this)
@@ -128,12 +143,12 @@ class MainActivity : AppCompatActivity() {
                     null }
     }
 
-    private fun addNodeToScene(fragment: ArFragment, anchor: Anchor, renderable: Renderable) : Node {
+    private fun addNodeToScene(fragment: ArFragment, anchor: Anchor, renderable: Renderable, vector3: Vector3) : Node {
         val anchorNode = AnchorNode(anchor)
-        val node = Node()
+        val node = TransformableNode(fragment.transformationSystem)
         node.renderable = renderable
         node.setParent(anchorNode)
-        node.localPosition = Vector3(0f, 0.2f, 0f)
+        node.localPosition = vector3
         fragment.arSceneView.scene.addChild(anchorNode)
        // node.select()
 
