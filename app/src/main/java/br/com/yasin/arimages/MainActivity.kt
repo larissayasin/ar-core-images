@@ -3,10 +3,13 @@ package br.com.yasin.arimages
 import android.app.AlertDialog
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import android.view.Gravity
 import android.widget.TextView
 import android.widget.Toast
 import com.google.ar.core.*
@@ -18,12 +21,11 @@ import com.google.ar.sceneform.ArSceneView
 import com.google.ar.sceneform.FrameTime
 import com.google.ar.sceneform.Node
 import com.google.ar.sceneform.math.Vector3
-import com.google.ar.sceneform.rendering.ModelRenderable
-import com.google.ar.sceneform.rendering.Renderable
-import com.google.ar.sceneform.rendering.ViewRenderable
+import com.google.ar.sceneform.rendering.*
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import kotlinx.android.synthetic.main.activity_main.*
+import org.jetbrains.anko.toast
 import java.io.IOException
 
 
@@ -34,7 +36,18 @@ class MainActivity : AppCompatActivity() {
     private var modelCarAdded = false // add model once
     private var modelDaftAdded = false // add model once
 
+    // Controls the height of the video in world space.
+    private val VIDEO_HEIGHT_METERS = 0.5f
+
     private var sessionConfigured = false
+
+    private var videoRenderable: ModelRenderable? = null
+    private var mediaPlayer: MediaPlayer? = null
+
+    private val texture by lazy {
+        ExternalTexture()
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +60,10 @@ class MainActivity : AppCompatActivity() {
         arFragment!!.arSceneView.scene.addOnUpdateListener { this.onUpdateFrame(it) }
 
         arSceneView = arFragment!!.arSceneView
+
+        mediaPlayer = MediaPlayer.create(this, R.raw.googlepixel)
+        mediaPlayer!!.setSurface(texture.surface)
+        mediaPlayer!!.isLooping = false
 
     }
 
@@ -61,7 +78,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun loadAugmentedImage(file : String): Bitmap? {
+    private fun loadAugmentedImage(file: String): Bitmap? {
         try {
             assets.open(file).use { `is` -> return BitmapFactory.decodeStream(`is`) }
         } catch (e: IOException) {
@@ -80,14 +97,14 @@ class MainActivity : AppCompatActivity() {
             if (augmentedImage.trackingState == TrackingState.TRACKING) {
 
                 if (augmentedImage.name.contains("car") && !modelCarAdded) {
-                    renderObject(arFragment!!,
-                            augmentedImage.createAnchor(augmentedImage.centerPose),
-                            Uri.parse("Convertible.sfb"))
+                    renderView(arFragment!!,
+                            augmentedImage.createAnchor(augmentedImage.centerPose))
                     modelCarAdded = true
                 }
                 if (augmentedImage.name.contains("daft") && !modelDaftAdded) {
-                    renderView(arFragment!!,
-                            augmentedImage.createAnchor(augmentedImage.centerPose))
+                    renderObject(arFragment!!,
+                            augmentedImage.createAnchor(augmentedImage.centerPose),
+                            Uri.parse("Convertible.sfb"))
                     modelDaftAdded = true
                 }
             }
@@ -111,7 +128,25 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun renderView(fragment: ArFragment, anchor: Anchor){
+    private val CHROMA_KEY_COLOR = Color(0.1843f, 1.0f, 0.098f)
+
+    private fun renderView(fragment: ArFragment, anchor: Anchor) {
+
+        ModelRenderable.builder()
+                .setSource(this, Uri.parse("chroma_key_video.sfb"))
+                .build()
+                .thenAccept { renderable ->
+                    videoRenderable = renderable
+                    renderable.material.setExternalTexture("videoTexture", texture)
+                    renderable.material.setFloat4("keyColor", CHROMA_KEY_COLOR)
+                    createVideoDisplay(anchor, Vector3(0f, 0.5f, 0f))
+
+                }
+                .exceptionally { throwable ->
+                    toast("erro")
+                    null
+                }
+
         ViewRenderable.builder()
                 .setView(this, R.layout.text_info)
                 .build()
@@ -120,37 +155,53 @@ class MainActivity : AppCompatActivity() {
                     addNodeToScene(fragment, anchor, renderable, Vector3(0f, 0.2f, 0f))
 
                 }
-                .exceptionally { throwable -> val builder = AlertDialog.Builder(this)
-                    builder.setMessage(throwable.message)
-                            .setTitle("Error!")
-                    val dialog = builder.create()
-                    dialog.show()
-                    null }
-
-        ViewRenderable.builder()
-                .setView(this, R.layout.text_info2)
-                .build()
-                .thenAccept { renderable ->
-                    (renderable.view as TextView).text = "Texto - 123"
-                    addNodeToScene(fragment, anchor, renderable, Vector3(0.8f, 0f, 0f))
-
+                .exceptionally { throwable ->
+                    toast(throwable.message ?: "Error")
+                    null
                 }
-                .exceptionally { throwable -> val builder = AlertDialog.Builder(this)
-                    builder.setMessage(throwable.message)
-                            .setTitle("Error!")
-                    val dialog = builder.create()
-                    dialog.show()
-                    null }
+
+
     }
 
-    private fun addNodeToScene(fragment: ArFragment, anchor: Anchor, renderable: Renderable, vector3: Vector3) : Node {
+    private fun createVideoDisplay(anchor: Anchor, vector3: Vector3) {
+        val anchorNode = AnchorNode(anchor)
+        anchorNode.setParent(arFragment!!.arSceneView.scene)
+        val videoNode = Node()
+        videoNode.setParent(anchorNode)
+        videoNode.localPosition = vector3
+        // Set the scale of the node so that the aspect ratio of the video is correct.
+        val videoWidth = mediaPlayer!!.videoWidth.toFloat()
+        val videoHeight = mediaPlayer!!.videoHeight.toFloat()
+        videoNode.localScale = Vector3(
+                VIDEO_HEIGHT_METERS * (videoWidth / videoHeight), VIDEO_HEIGHT_METERS, 1.0f)
+
+        // Start playing the video when the first node is placed.
+        if (!mediaPlayer!!.isPlaying()) {
+            mediaPlayer!!.start()
+
+            // Wait to set the renderable until the first frame of the  video becomes available.
+            // This prevents the renderable from briefly appearing as a black quad before the video
+            // plays.
+            texture
+                    .surfaceTexture
+                    .setOnFrameAvailableListener { surfaceTexture: SurfaceTexture ->
+                        videoNode.renderable = videoRenderable
+                        texture.surfaceTexture.setOnFrameAvailableListener(null)
+                    }
+        } else {
+            videoNode.renderable = videoRenderable
+        }
+
+    }
+
+    private fun addNodeToScene(fragment: ArFragment, anchor: Anchor, renderable: Renderable, vector3: Vector3): Node {
         val anchorNode = AnchorNode(anchor)
         val node = TransformableNode(fragment.transformationSystem)
         node.renderable = renderable
         node.setParent(anchorNode)
         node.localPosition = vector3
         fragment.arSceneView.scene.addChild(anchorNode)
-       // node.select()
+        // node.select()
 
         return node
     }
@@ -161,6 +212,16 @@ class MainActivity : AppCompatActivity() {
 
             arSceneView!!.pause()
             mSession!!.pause()
+        }
+    }
+
+
+    public override fun onDestroy() {
+        super.onDestroy()
+
+        if (mediaPlayer != null) {
+            mediaPlayer!!.release()
+            mediaPlayer = null
         }
     }
 
@@ -199,7 +260,6 @@ class MainActivity : AppCompatActivity() {
 
             arSceneView!!.setupSession(mSession)
         }
-
 
     }
 

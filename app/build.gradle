@@ -52,6 +52,10 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
     implementation 'com.google.ar.sceneform.ux:sceneform-ux:1.5.0'
+
+    implementation "org.jetbrains.anko:anko-commons:$anko_version"
+    implementation "org.jetbrains.anko:anko-design:$anko_version"
+
 }
 
 apply plugin: 'com.google.ar.sceneform.plugin'
@@ -61,12 +65,8 @@ sceneform.asset('sampledata/models/Convertible.obj',
         'sampledata/models/Convertible.sfa',
         'src/main/assets/Convertible')
 
-sceneform.asset('sampledata/models/model.obj',
-        'default',
-        'sampledata/models/model.sfa',
-        'src/main/assets/model')
 
-sceneform.asset('sampledata/models/Boombox/Boombox.obj',
+sceneform.asset('sampledata/models/chroma_key_video.obj',
         'default',
-        'sampledata/models/Boombox/Boombox.sfa',
-        'src/main/assets/Boombox')
+        'sampledata/models/chroma_key_video.sfa',
+        'src/main/assets/chroma_key_video')
