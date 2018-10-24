@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
                     videoRenderable = renderable
                     renderable.material.setExternalTexture("videoTexture", texture)
                     renderable.material.setFloat4("keyColor", CHROMA_KEY_COLOR)
-                    createVideoDisplay(anchor, Vector3(0f, 0.5f, 0f))
+                    createVideoDisplay(anchor, Vector3(0f, 0f, 0f))
 
                 }
                 .exceptionally { throwable ->
