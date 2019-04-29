@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
     private fun onUpdateFrame(frameTime: FrameTime) {
         val frame = arFragment!!.arSceneView.arFrame
 
-        val augmentedImages = frame.getUpdatedTrackables(AugmentedImage::class.java)
+        val augmentedImages = frame!!.getUpdatedTrackables(AugmentedImage::class.java)
 
         for (augmentedImage in augmentedImages) {
             if (augmentedImage.trackingState == TrackingState.TRACKING) {
